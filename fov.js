@@ -41,7 +41,10 @@ function fov_slope(dx, dy) {
 	}
 }
 
-function fov_octant(settings, data, signx, signy, rx, ry, apply_edge, apply_diag, dx, start_slope, end_slope) {
+function fov_octant(settings, data, signx, signy, rx, dx, start_slope, end_slope) {
+  var ry = 1-rx;
+  var apply_edge = (signy == 1);
+  var apply_diag = (dx == 0);
 	var p = [0,0], dy, dy0, dy1;
 	var h;
 	var prev_blocked = -1;
@@ -115,15 +118,15 @@ function fov_octant(settings, data, signx, signy, rx, ry, apply_edge, apply_diag
 }
 
 function _fov_circle(settings, data) {
-	fov_octant(settings, data, +1, +1, 0, 1, true,  true,  1, 0.0, 1.0)
-	fov_octant(settings, data, +1, +1, 1, 0, true,  false, 1, 0.0, 1.0)
-	fov_octant(settings, data, +1, -1, 0, 1, false, true,  1, 0.0, 1.0)
-	fov_octant(settings, data, +1, -1, 1, 0, false, false, 1, 0.0, 1.0)
+	fov_octant(settings, data, +1, +1, 0, 1, 0.0, 1.0)
+	fov_octant(settings, data, +1, +1, 1, 1, 0.0, 1.0)
+	fov_octant(settings, data, +1, -1, 0, 1, 0.0, 1.0)
+	fov_octant(settings, data, +1, -1, 1, 1, 0.0, 1.0)
 
-	fov_octant(settings, data, -1, +1, 0, 1, true,  true,  1, 0.0, 1.0)
-	fov_octant(settings, data, -1, +1, 1, 0, true,  false, 1, 0.0, 1.0)
-	fov_octant(settings, data, -1, -1, 0, 1, false, true,  1, 0.0, 1.0)
-	fov_octant(settings, data, -1, -1, 1, 0, false, false, 1, 0.0, 1.0)
+	fov_octant(settings, data, -1, +1, 0, 1, 0.0, 1.0)
+	fov_octant(settings, data, -1, +1, 1, 1, 0.0, 1.0)
+	fov_octant(settings, data, -1, -1, 0, 1, 0.0, 1.0)
+	fov_octant(settings, data, -1, -1, 1, 1, 0.0, 1.0)
 }
 
 /*
@@ -136,7 +139,7 @@ function _fov_circle(settings, data) {
  */
 
 function fov_circle(settings, map, source_x, source_y, radius) {
-	data = {
+	var data = {
 		map: map,
 		source: [source_x, source_y],
 		radius: radius,
@@ -144,8 +147,102 @@ function fov_circle(settings, map, source_x, source_y, radius) {
 	_fov_circle(settings, data);
 }
 
+/**
+ * Limit x to the range [a, b].
+ */
+function betweenf(x, a, b) {
+    if (x - a < FLT_EPSILON) { /* x < a */
+        return a;
+    } else if (x - b > FLT_EPSILON) { /* x > b */
+        return b;
+    } else {
+        return x;
+    }
+}
+
+function fov_octant2(settings, data, p, q, dx, start_slope, end_slope) {
+  fov_octant(settings, data, p[0], p[1], p[2], dx, start_slope, end_slope);
+  fov_octant(settings, data, q[0], q[1], q[2], dx, start_slope, end_slope);
+};
+
+//function fov_octant(settings, data, signx, signy, rx, dx, start_slope, end_slope) {
+function BEAM_DIRECTION(settings, data, direction, a, d, p1, p2, p3, p4, p5, p6, p7, p8) {
+  if (direction == d) {                                   
+    var end_slope = betweenf(a, 0, 1);                
+    fov_octant2(settings, data, p1, p2, 1, 0, end_slope);         
+    if (a - 1 > FLT_EPSILON) { /* a > 1 */        
+      var start_slope = betweenf(2 - a, 0, 1);   
+      fov_octant2(settings, data, p3, p4, 1, start_slope, 1);   
+    }                                                   
+    if (a - 2 > FLT_EPSILON) { /* a > 2 */        
+      var end_slope = betweenf(a - 2, 0, 1);     
+      fov_octant2(settings, data, p5, p6, 1, 0, end_slope);     
+    }                                                   
+    if (a - 3 > FLT_EPSILON) { /* a > 3 */        
+      var start_slope = betweenf(4 - a, 0, 1);   
+      fov_octant2(settings, data, p7, p8, 1, start_slope, 1);   
+    }                                                   
+  }
+}
+
+function BEAM_DIRECTION_DIAG(settings, data, direction, a, d, p1, p2, p3, p4, p5, p6, p7, p8) {
+  if (direction == d) {                                       
+    var start_slope = betweenf(1 - a, 0, 1);           
+    fov_octant2(settings, data, p1, p2, 1, start_slope, 1);           
+    if (a - 1 > FLT_EPSILON) { /* a > 1 */            
+      var end_slope = betweenf(a - 1, 0, 1);         
+      fov_octant2(settings, data, p3, p4, 1, 0, end_slope);         
+    }                                                       
+    if (a - 2 > FLT_EPSILON) { /* a > 2 */            
+      var start_slope = betweenf(3 - a, 0, 1);       
+      fov_octant2(settings, data, p5, p6, 1, start_slope, 1);       
+    }                                                       
+    if (a - 3 > FLT_EPSILON) { /* a > 3 */            
+      var end_slope = betweenf(a - 3, 0, 1);         
+      fov_octant2(settings, data, p7, p8, 1, 0, end_slope);         
+    }                                                       
+  }
+}
+
+function fov_beam(settings, map, source, source_x, source_y, radius, direction, angle) {
+  var data = {
+    map: map,
+    source: source,
+    source_x: source_x,
+    source_y: source_y,
+    radius: radius
+  };
+
+  if (angle <= 0) {
+    return;
+  } else if (angle >= 360) {
+    _fov_circle(settings, data);
+    return;
+  }
+
+  /* Calculate the angle as a percentage of 45 degrees, halved (for
+   * each side of the centre of the beam). e.g. angle = 180 means
+   * half the beam is 90.0 which is 2x45, so the result is 2.0.
+   */
+  var a = (angle * 2 / Math.PI);
+
+  var ppn = [1,1,0], ppy = [1,1,1];
+  var pmn = [1,-1,0], pmy = [1,-1,1];
+  var mpn = [-1,1,0], mpy = [-1,1,1];
+  var mmn = [-1,-1,0], mmy = [-1,-1,1];
+  BEAM_DIRECTION(settings, data, 0, ppn, pmn, ppy, mpy, pmy, mmy, mpn, mmn);
+  BEAM_DIRECTION(settings, data, 4, mpn, mmn, pmy, mmy, ppy, mpy, ppn, pmn);
+  BEAM_DIRECTION(settings, data, 2, mpy, mmy, mmn, pmn, mpn, ppn, pmy, ppy);
+  BEAM_DIRECTION(settings, data, 6, pmy, ppy, mpn, ppn, mmn, pmn, mmy, mpy);
+  BEAM_DIRECTION_DIAG(settings, data, 1, pmn, mpy, mmy, ppn, mmn, ppy, mpn, pmy);
+  BEAM_DIRECTION_DIAG(settings, data, 3, mmn, mmy, mpn, mpy, pmy, pmn, ppy, ppn);
+  BEAM_DIRECTION_DIAG(settings, data, 7, ppn, ppy, pmy, pmn, mpn, mpy, mmn, mmy);
+  BEAM_DIRECTION_DIAG(settings, data, 5, pmy, mpn, ppy, mmn, ppn, mmy, pmn, mpy);
+}
+
 return {
 	circle: fov_circle,
+  beam: fov_beam,
 	//SHAPE_CIRCLE_PRECALCULATE: FOV_SHAPE_CIRCLE_PRECALCULATE,
 	SHAPE_CIRCLE: FOV_SHAPE_CIRCLE,
 	SHAPE_OCTAGON: FOV_SHAPE_OCTAGON,
