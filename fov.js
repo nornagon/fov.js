@@ -44,7 +44,7 @@ function fov_slope(dx, dy) {
 function fov_octant(settings, data, signx, signy, rx, dx, start_slope, end_slope) {
   var ry = 1-rx;
   var apply_edge = (signy == 1);
-  var apply_diag = (dx == 0);
+  var apply_diag = (rx == 0);
 	var p = [0,0], dy, dy0, dy1;
 	var h;
 	var prev_blocked = -1;
@@ -96,7 +96,7 @@ function fov_octant(settings, data, signx, signy, rx, dx, start_slope, end_slope
 			}
 			if (prev_blocked == 0) {
 				end_slope_next = fov_slope(dx + 0.5, dy - 0.5);
-				fov_octant(settings, data, signx, signy, rx, ry, apply_edge, apply_diag, dx+1, start_slope, end_slope_next);
+				fov_octant(settings, data, signx, signy, rx, dx+1, start_slope, end_slope_next);
 			}
 			prev_blocked = 1;
 		} else {
@@ -113,20 +113,20 @@ function fov_octant(settings, data, signx, signy, rx, dx, start_slope, end_slope
 	}
 
 	if (prev_blocked == 0) {
-		fov_octant(settings, data, signx, signy, rx, ry, apply_edge, apply_diag, dx+1, start_slope, end_slope);
+		fov_octant(settings, data, signx, signy, rx, dx+1, start_slope, end_slope);
 	}
 }
 
 function _fov_circle(settings, data) {
-	fov_octant(settings, data, +1, +1, 0, 1, 0.0, 1.0)
-	fov_octant(settings, data, +1, +1, 1, 1, 0.0, 1.0)
-	fov_octant(settings, data, +1, -1, 0, 1, 0.0, 1.0)
-	fov_octant(settings, data, +1, -1, 1, 1, 0.0, 1.0)
+	fov_octant(settings, data, +1, +1, 0, 1, 0, 1);
+	fov_octant(settings, data, +1, +1, 1, 1, 0, 1);
+	fov_octant(settings, data, +1, -1, 0, 1, 0, 1);
+	fov_octant(settings, data, +1, -1, 1, 1, 0, 1);
 
-	fov_octant(settings, data, -1, +1, 0, 1, 0.0, 1.0)
-	fov_octant(settings, data, -1, +1, 1, 1, 0.0, 1.0)
-	fov_octant(settings, data, -1, -1, 0, 1, 0.0, 1.0)
-	fov_octant(settings, data, -1, -1, 1, 1, 0.0, 1.0)
+	fov_octant(settings, data, -1, +1, 0, 1, 0, 1);
+	fov_octant(settings, data, -1, +1, 1, 1, 0, 1);
+	fov_octant(settings, data, -1, -1, 0, 1, 0, 1);
+	fov_octant(settings, data, -1, -1, 1, 1, 0, 1);
 }
 
 /*
@@ -204,18 +204,16 @@ function BEAM_DIRECTION_DIAG(settings, data, direction, a, d, p1, p2, p3, p4, p5
   }
 }
 
-function fov_beam(settings, map, source, source_x, source_y, radius, direction, angle) {
+function fov_beam(settings, map, source_x, source_y, radius, direction, angle) {
   var data = {
     map: map,
-    source: source,
-    source_x: source_x,
-    source_y: source_y,
+    source: [source_x, source_y],
     radius: radius
   };
 
   if (angle <= 0) {
     return;
-  } else if (angle >= 360) {
+  } else if (angle >= 2*Math.PI) {
     _fov_circle(settings, data);
     return;
   }
@@ -230,14 +228,14 @@ function fov_beam(settings, map, source, source_x, source_y, radius, direction, 
   var pmn = [1,-1,0], pmy = [1,-1,1];
   var mpn = [-1,1,0], mpy = [-1,1,1];
   var mmn = [-1,-1,0], mmy = [-1,-1,1];
-  BEAM_DIRECTION(settings, data, 0, ppn, pmn, ppy, mpy, pmy, mmy, mpn, mmn);
-  BEAM_DIRECTION(settings, data, 4, mpn, mmn, pmy, mmy, ppy, mpy, ppn, pmn);
-  BEAM_DIRECTION(settings, data, 2, mpy, mmy, mmn, pmn, mpn, ppn, pmy, ppy);
-  BEAM_DIRECTION(settings, data, 6, pmy, ppy, mpn, ppn, mmn, pmn, mmy, mpy);
-  BEAM_DIRECTION_DIAG(settings, data, 1, pmn, mpy, mmy, ppn, mmn, ppy, mpn, pmy);
-  BEAM_DIRECTION_DIAG(settings, data, 3, mmn, mmy, mpn, mpy, pmy, pmn, ppy, ppn);
-  BEAM_DIRECTION_DIAG(settings, data, 7, ppn, ppy, pmy, pmn, mpn, mpy, mmn, mmy);
-  BEAM_DIRECTION_DIAG(settings, data, 5, pmy, mpn, ppy, mmn, ppn, mmy, pmn, mpy);
+  BEAM_DIRECTION(settings, data, direction, a, 'east', ppn, pmn, ppy, mpy, pmy, mmy, mpn, mmn);
+  BEAM_DIRECTION(settings, data, direction, a, 'west', mpn, mmn, pmy, mmy, ppy, mpy, ppn, pmn);
+  BEAM_DIRECTION(settings, data, direction, a, 'north', mpy, mmy, mmn, pmn, mpn, ppn, pmy, ppy);
+  BEAM_DIRECTION(settings, data, direction, a, 'south', pmy, ppy, mpn, ppn, mmn, pmn, mmy, mpy);
+  BEAM_DIRECTION_DIAG(settings, data, direction, a, 'northeast', pmn, mpy, mmy, ppn, mmn, ppy, mpn, pmy);
+  BEAM_DIRECTION_DIAG(settings, data, direction, a, 'northwest', mmn, mmy, mpn, mpy, pmy, pmn, ppy, ppn);
+  BEAM_DIRECTION_DIAG(settings, data, direction, a, 'southeast', ppn, ppy, pmy, pmn, mpn, mpy, mmn, mmy);
+  BEAM_DIRECTION_DIAG(settings, data, direction, a, 'southwest', pmy, mpn, ppy, mmn, ppn, mmy, pmn, mpy);
 }
 
 return {
