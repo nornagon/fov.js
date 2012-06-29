@@ -9,10 +9,20 @@
  *    apply: function (map, x, y, sx, sy) { map.at(x,y).visible = true; },
  *  	opaque_apply: true,
  *  };
+ *
+ *  // Light up a circle centered on some X, Y:
  *  fov.circle(fov_settings, map, game.player.x, game.player.y, 30);
  *
- * shape must be in {SHAPE_CIRCLE, SHAPE_OCTAGON}.
- * opaque is a function to determine whether a given tile is opaque or not.
+ *  // Light up a beam pointing north with a spread of 1.5 radians
+ *  fov.beam(fov_settings, map, game.player.x, game.player.y, 30, 'north', 1.5);
+ *
+ *  // Light up a beam pointed in the specified (arbitrary) angle, again with a spread of 1.5 radians.
+ *  fov.beam2(fov_settings, map, game.player.x, game.player.y, 30, game.player.angle, 1.5);
+ *
+ * Named directions must be in:
+ *  ['north', 'south', 'east', 'west', 'northeast', 'southest', 'northwest', 'southwest'].
+ * shape must be in [fov.SHAPE_CIRCLE, fov.SHAPE_OCTAGON].
+ * opaque is a user specified function to determine whether a given tile is opaque or not.
  * apply is a function that will be called on cells calculated to be visible.
  * apply will be called on opaque squares if and only if opaque_apply is true.
  *
@@ -238,9 +248,61 @@ function fov_beam(settings, map, source_x, source_y, radius, direction, angle) {
   BEAM_DIRECTION_DIAG(settings, data, direction, a, 'southwest', pmy, mpn, ppy, mmn, ppn, mmy, pmn, mpy);
 }
 
+var ANGLES = [[1,1,0], [1,1,1], [1,-1,1], [-1,1,0], [-1,-1,0], [-1,-1,1], [-1,1,1], [1,-1,0]];
+function fov_beam2(settings, map, source_x, source_y, radius, angle, spread) {
+  var data = {
+    map: map,
+    source: [source_x, source_y],
+    radius: radius
+  };
+
+
+  if (spread <= 0) {
+    return;
+  } else if (spread >= 2*Math.PI) {
+    _fov_circle(settings, data);
+    return;
+  }
+
+  // Transpose starting angle and spread between 0 and 8
+  var q1 = (((angle-spread/2) * 4 / Math.PI) % 8 + 8) % 8;
+  var q2 = (((angle+spread/2) * 4 / Math.PI) % 8 + 8) % 8;
+
+  var qf1 = Math.floor(q1), qf2 = Math.floor(q2);
+
+  var i = qf1;
+  var left_slope, right_slope;
+  while(true) {
+    if (i === qf1) {
+      left_slope = q1 - i;
+    } else {
+      left_slope = 0;
+    }
+
+    if (i === qf2) {
+      right_slope = q2 - i;
+    } else {
+      right_slope = 1;
+    }
+
+    if (i % 2) {
+      fov_octant(settings, data, ANGLES[i][0], ANGLES[i][1], ANGLES[i][2], 1, 1 - right_slope, 1 - left_slope);
+    } else {
+      fov_octant(settings, data, ANGLES[i][0], ANGLES[i][1], ANGLES[i][2], 1, left_slope, right_slope);
+    }
+
+    if (i === qf2) {
+      break;
+    }
+
+    i = (i + 1) % 8;
+  }
+}
+
 return {
 	circle: fov_circle,
   beam: fov_beam,
+  beam2: fov_beam2,
 	//SHAPE_CIRCLE_PRECALCULATE: FOV_SHAPE_CIRCLE_PRECALCULATE,
 	SHAPE_CIRCLE: FOV_SHAPE_CIRCLE,
 	SHAPE_OCTAGON: FOV_SHAPE_OCTAGON,
